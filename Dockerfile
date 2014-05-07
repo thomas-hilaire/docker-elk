@@ -2,9 +2,7 @@
 
 FROM ubuntu
  
-RUN echo 'deb http://archive.ubuntu.com/ubuntu precise main universe' > /etc/apt/sources.list && \
-    echo 'deb http://archive.ubuntu.com/ubuntu precise-updates universe' >> /etc/apt/sources.list && \
-    apt-get update
+RUN  apt-get update
 
 #Prevent daemon start during install
 RUN	echo '#!/bin/sh\nexit 101' > /usr/sbin/policy-rc.d && \
@@ -21,14 +19,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y openssh-server && \
 	echo 'root:root' |chpasswd
 
 #Utilities
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y vim less nano maven ntp net-tools inetutils-ping curl git telnet
-
-#Install Oracle Java 7
-RUN echo 'deb http://ppa.launchpad.net/webupd8team/java/ubuntu precise main' > /etc/apt/sources.list.d/java.list && \
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys EEA14886 && \
-    apt-get update && \
-    echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y oracle-java7-installer
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y less nano ntp net-tools inetutils-ping curl git telnet openjdk-7-jre-headless tzdata-java
 
 #ElasticSearch
 RUN wget https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-1.1.0.tar.gz && \
@@ -44,7 +35,7 @@ RUN wget https://download.elasticsearch.org/kibana/kibana/kibana-3.0.0.tar.gz &&
     mv kibana-* kibana
 
 #NGINX
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y python-software-properties && \
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y software-properties-common && \
     add-apt-repository ppa:nginx/stable && \
     echo 'deb http://packages.dotdeb.org squeeze all' >> /etc/apt/sources.list && \
     curl http://www.dotdeb.org/dotdeb.gpg | apt-key add - && \
@@ -56,26 +47,17 @@ RUN wget https://download.elasticsearch.org/logstash/logstash/logstash-1.4.0.tar
 	tar xf logstash-*.tar.gz && \
     rm logstash-*.tar.gz && \
     mv logstash-* logstash
-    
-#LogGenerator
-RUN git clone https://github.com/vspiewak/log-generator.git && \
-	cd log-generator && \
-	/usr/share/maven/bin/mvn clean package
-
-#Geo
-RUN wget -N http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz && \
-	gunzip GeoLiteCity.dat.gz && \
-    mv GeoLiteCity.dat /log-generator/GeoLiteCity.dat
 
 #Configuration
 ADD ./ /docker-elk
 RUN cd /docker-elk && \
+    mkdir /opush && \
     mv /etc/nginx/nginx.conf /etc/nginx/nginx.conf.saved && \
     cp nginx.conf /etc/nginx/nginx.conf && \
     cp supervisord-kibana.conf /etc/supervisor/conf.d && \
-    cp logback /logstash/patterns/logback && \
+    cp opush /logstash/patterns/opush && \
     cp logstash-forwarder.crt /logstash/logstash-forwarder.crt && \
     cp logstash-forwarder.key /logstash/logstash-forwarder.key
 
-#80=ngnx, 9200=elasticsearch, 49021=logstash, 49022=lumberjack, 9999=udp
-EXPOSE 22 80 9200 49021 49022 9999/udp
+#80=ngnx, 9200=elasticsearch
+EXPOSE 22 80 9200
